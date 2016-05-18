@@ -1,58 +1,121 @@
-require_relative 'piece'
+
 
 class Board
-  INITIAL_LAYOUT = [:rook, :knight, :bishop, :queen, :king, :bishop, :knight, :rook]
+  INITIAL_BOARD = [
+  [[:rook, :black], [:knight, :black], [:bishop, :black], [:queen, :black], [:king, :black], [:bishop, :black], [:knight, :black], [:rook, :black]],
+  [[:pawn, :black]] * 8,
+  [[nil,nil]] * 8,
+  [[nil,nil]] * 8,
+  [[nil,nil]] * 8,
+  [[nil,nil]] * 8,
+  [[:pawn, :white]] * 8,
+  [[:rook, :white], [:knight, :white], [:bishop, :white], [:king, :white], [:queen, :white], [:bishop, :white], [:knight, :white], [:rook, :white]]]
 
 
-  attr_reader :grid
-  def initialize(gride = nil)
+  def initialize(grid = nil)
     grid ||= Array.new(8){Array.new(8)}
     @grid = grid
   end
 
-  def setup_board
+  attr_reader :grid
+  def setup_board(board = INITIAL_BOARD)
     grid = []
-    grid << INITIAL_LAYOUT.map.with_index { |kind, i| Piece.setup(kind, :black, [0,i]) }
-    grid << (0..7).to_a.map.with_index { |_, i| Piece.setup(:pawn, :black, [1,i])}
-
-    4.times { grid << Array.new(8){nil} }
-
-    grid << (0..7).to_a.map.with_index {|_, i| Piece.setup(:pawn, :white, [6,i])}
-    grid << INITIAL_LAYOUT.reverse.map.with_index { |kind, i| Piece.setup(kind, :white [7,i]) }
+    board.each_with_index do |row, i|
+      grid << row.map.with_index do |kind_color, j|
+        kind, color = kind_color
+        Piece.setup(kind, color, [i,j])
+      end
+    end
     @grid = grid
   end
 
-  def [](row,col)
+
+
+  def move_piece(start_pos, end_pos)
+    self[*start_pos].evaluate_move(end_pos, self)
+
+    self[*start_pos].current_pos = end_pos.dup
+    self[*end_pos] = self[*start_pos]
+    self[*start_pos] = NullPiece.instance
+  end
+
+  def in_check?(my_color)
+    my_king = king(my_color)
+    other_color = (my_color == :black) ? :white : :black
+    opp_pieces = all_pieces(other_color)
+
+    opp_pieces.each do |piece|
+      begin
+        return true if piece.evaluate_move(my_king.current_pos, self)
+      rescue InvalidMoveError
+      end
+    end
+    false
+  end
+
+  def king(color)
+    @grid.map do |row|
+      row.find { |piece| piece.kind == :king && piece.color == color }
+    end.reject(&:nil?).first
+  end
+
+  def all_pieces(color)
+    @grid.map do |row|
+      row.select { |piece| piece.is_a?(Piece) && piece.color == color }
+    end.flatten
+  end
+
+  def copy
+    copy_board = Board.new
+    8.times do |i|
+      8.times do |j|
+        copy_board[i,j] = self[i,j].copy
+      end
+    end
+    copy_board
+  end
+
+  def checkmate?(color)
+
+
+  end
+
+  def kings_escape_move(color)
+    this_king = king(color)
+    av_moves = []
+    this_king.available_moves.each do |pos|
+      begin
+        av_moves << pos if this_king.evaluate_move(pos, self)
+      rescue InvalidMoveError
+      end
+    end
+
+    av_moves.each do |pos|
+      tempboard = self.copy
+      tempboard.move_piece(this_king.current_pos, pos)
+      if tempboard.in_check?(color) == false
+        return pos
+      end
+    end
+    nil
+  end
+
+
+  def occupied?(pos)
+    !self[*pos].is_a?(NullPiece)
+  end
+
+
+  def [](row, col)
     @grid[row][col]
   end
 
-  def [](row, col, piece)
+  def []=(row, col, piece)
     @grid[row][col] = piece
   end
 
   def render_row(n)
-    @grid[n].map { |piece| piece.nil? ? " " : piece.to_s }
+    @grid[n].map { |piece| piece.to_s }
   end
-
-  def move(start_pos, end_pos)
-    raise unless valid_move?
-  end
-
-  def valid_move?
-    start_pos.nil? == false &&
-    end_pos.nil? == true &&
-    (start_pos + end_pos).all?{|pos| pos.between?(0,7)}
-  end
-
-  def in_check?(color)
-  end
-
-  def occupied?(pos)
-    !self[pos].nil?
-  end
-
-  def checkmate?(color)
-  end
-
 
 end
