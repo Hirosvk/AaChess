@@ -1,5 +1,4 @@
 
-
 class Board
   INITIAL_BOARD = [
   [[:rook, :black], [:knight, :black], [:bishop, :black], [:queen, :black], [:king, :black], [:bishop, :black], [:knight, :black], [:rook, :black]],
@@ -13,12 +12,11 @@ class Board
 
 
   def initialize(grid = nil)
-    grid ||= Array.new(8){Array.new(8)}
+    grid ||= Board.setup_board
     @grid = grid
   end
 
-  attr_reader :grid
-  def setup_board(board = INITIAL_BOARD)
+  def self.setup_board(board = INITIAL_BOARD)
     grid = []
     board.each_with_index do |row, i|
       grid << row.map.with_index do |kind_color, j|
@@ -26,10 +24,8 @@ class Board
         Piece.setup(kind, color, [i,j])
       end
     end
-    @grid = grid
+    grid
   end
-
-
 
   def move_piece(start_pos, end_pos)
     self[*start_pos].evaluate_move(end_pos, self)
@@ -42,9 +38,9 @@ class Board
   def in_check?(my_color)
     my_king = king(my_color)
     other_color = (my_color == :black) ? :white : :black
-    opp_pieces = all_pieces(other_color)
+    opponents_pieces = all_pieces(other_color)
 
-    opp_pieces.each do |piece|
+    opponents_pieces.each do |piece|
       begin
         return true if piece.evaluate_move(my_king.current_pos, self)
       rescue InvalidMoveError
@@ -53,16 +49,51 @@ class Board
     false
   end
 
-  def king(color)
-    @grid.map do |row|
-      row.find { |piece| piece.kind == :king && piece.color == color }
-    end.reject(&:nil?).first
+  def checkmate?(color)
+    return true if saving_moves(color).empty?
+    false
   end
 
-  def all_pieces(color)
-    @grid.map do |row|
-      row.select { |piece| piece.is_a?(Piece) && piece.color == color }
-    end.flatten
+  def saving_moves(color)
+    saving_moves = []
+
+    all_pieces(color).each do |piece|
+      8.times do |row|
+        8.times do |col|
+
+          tempgrid = self.copy
+          begin
+            if piece.evaluate_move([row,col], tempgrid)
+              tempgrid.move_piece(piece.current_pos, [row,col])
+              saving_moves << [piece.current_pos, [row, col]] unless tempgrid.in_check?(color)
+            end
+          rescue InvalidMoveError
+
+          end
+        end
+      end
+    end
+    saving_moves
+  end
+
+
+
+
+  def occupied?(pos)
+    !self[*pos].is_a?(NullPiece)
+  end
+
+
+  def [](row, col)
+    @grid[row][col]
+  end
+
+  def []=(row, col, piece)
+    @grid[row][col] = piece
+  end
+
+  def render_row(n)
+    @grid[n].map { |piece| piece.to_s }
   end
 
   def copy
@@ -75,10 +106,21 @@ class Board
     copy_board
   end
 
-  def checkmate?(color)
 
-
+  private
+  def king(color)
+    @grid.map do |row|
+      row.find { |piece| piece.kind == :king && piece.color == color }
+    end.reject(&:nil?).first
   end
+
+  def all_pieces(color)
+    @grid.map do |row|
+      row.select { |piece| piece.is_a?(Piece) && piece.color == color }
+    end.flatten
+  end
+
+
 
   def kings_escape_move(color)
     this_king = king(color)
@@ -101,21 +143,5 @@ class Board
   end
 
 
-  def occupied?(pos)
-    !self[*pos].is_a?(NullPiece)
-  end
-
-
-  def [](row, col)
-    @grid[row][col]
-  end
-
-  def []=(row, col, piece)
-    @grid[row][col] = piece
-  end
-
-  def render_row(n)
-    @grid[n].map { |piece| piece.to_s }
-  end
 
 end

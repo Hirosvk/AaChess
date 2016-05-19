@@ -1,8 +1,6 @@
-require "colorize"
+
 require 'singleton'
 class InvalidMoveError < StandardError
-  def initialize
-  end
 end
 
 class Piece
@@ -62,7 +60,7 @@ class SlidingPiece < Piece
   def evaluate_move(destination, board)
     av_moves = available_moves
     dir = find_direction(destination, av_moves)
-    raise InvalidMoveError.new if dir.nil?
+    raise InvalidMoveError.new  if dir.nil?
 
     av_moves[dir].each do |pos|
       break if pos == destination
@@ -73,6 +71,7 @@ class SlidingPiece < Piece
     raise InvalidMoveError.new
   end
 
+  private
   def find_direction(destination, av_moves)
     dir = nil
     av_moves.each do |key, pos_s|
@@ -116,6 +115,7 @@ class SlidingPiece < Piece
 end
 
 class Bishop < SlidingPiece
+
   def available_moves
     available_moves_diag
   end
